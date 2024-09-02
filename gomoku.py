@@ -400,3 +400,359 @@ class Gomoku:
             direction_patterns.append(('D2', pattern))
 
         return direction_patterns
+    
+
+
+
+
+
+    def is_valid_move(self, move_position, board):
+        """
+        It checks if the move is valid.
+        
+        :param move_position: the position of the move
+        :param board: the board that the player is playing on
+        :return: The return value is a boolean value.
+        """
+        move_r, move_c = move_position
+        is_r_valid = (0 <= move_r < ROWS)
+        is_c_valid = (0 <= move_c < COLS)
+        return is_c_valid and is_r_valid
+
+    def checkmate(self):
+        """
+        It checks if there's a 
+        continuous-five (win condition) in the board
+        """
+
+        streak = 4
+        continous_five_patterns = None
+        if self.current_player == 'AI':
+            continuous_five_pattern = End_Game_Pattern_AI
+        elif self.current_player == 'human':
+            continuous_five_pattern = End_Game_Pattern_Human
+
+        possible_moves = self.generate_possible_moves(self.board, 1)
+        check_mate_moves = []
+
+        #the below loop will check if a possible move 
+        #can lead to game over situation
+        #if it can then the move is added to the checkmate 
+        #move
+
+        for move in possible_moves:
+            temp_board = deepcopy(self.board)
+            temp_board[move[0]][move[1]] = self.current_player
+            if self.game_over(temp_board):
+                check_mate_moves.append(move)
+
+        if len(check_mate_moves) > 0:
+            score = -infinity
+            best_move = None
+
+            for move in check_mate_moves:
+                temp_board = deepcopy(self.board)
+                temp_board[move[0]][move[1]] = self.current_player
+                AI_score, human_score = self.evaluate(temp_board)
+                temp_score = 0
+                if self.current_player == 'human':
+                    temp_score = AI_score - human_score
+                else:
+                    temp_score = human_score - AI_score
+                if temp_score > score:
+                    score = temp_score
+                    best_move = move
+
+                return best_move
+
+        else:
+            return None
+
+    def evaluate(self, board):
+        """
+        It takes a board and returns a tuple of 
+        for each player
+        
+        """
+        AI_score = 0
+        human_score = 0
+
+        lines = self.split_board_to_arrays(board)
+        for line in lines:
+            line_human_score, line_AI_score = self.evaluate_line(line)
+            AI_score += line_AI_score
+            human_score += line_human_score
+
+        return AI_score, human_score
+
+    def split_board_to_arrays(self, board):
+        """
+        It takes a 2D array and returns a list of 1D arrays,
+        where each 1D array is a row, column, or
+        diagonal of the original 2D array
+        """
+        res_arrays = []
+        # diagonals: (SQUARE ONLY)
+        # https://stackoverflow.com/questions/6313308/get-all-the-diagonals-in-a-matrix-list-of-lists-in-python
+
+        # convert "upper left - lower right" diagonal lines to list of "straight lines"
+        #   0 1 2         list[[]]
+        # 0 ⟍ ⟍ ⟍        —
+        # 1 ⟍ ⟍ ⟍        — —
+        # 2 * ⟍ ⟍    =>  — — —
+        #                 — —
+        #                 —
+        # start at *
+        diagonal_count = range(-(ROWS - 1), COLS)
+        for d in diagonal_count:
+            res_arrays.append([row[r + d] for r, row in enumerate(board) if 0 <= r + d < len(row)])
+
+        # convert "lower left - upper right" diagonal lines to list of "straight lines"
+        #   0 1 2         list[[]]
+        # 0 ⟋ ⟋ ⟋        —
+        # 1 ⟋ ⟋ ⟋        — —
+        # 2 ⟋ ⟋ *    =>  — — —
+        #                 — —
+        #                 —
+        # start at *
+
+        for d in diagonal_count:
+            res_arrays.append([row[~(r + d)] for r, row in enumerate(board) if 0 <= r + d < len(row)])
+
+        #rows
+        for row in board:
+            res_arrays.append(deepcopy(row))
+
+        #columns
+        for c in range(0, COLS):
+            temp_column = []
+            for r in range(0, ROWS):
+                temp_column.append(board[r][c])
+            res_arrays.append(temp_column)
+
+        return res_arrays
+
+    def evaluate_line(self, line):
+        """
+        It takes a line of the board
+        and returns the score for AI and human
+        """
+        AI_score = 0
+        human_score = 0
+
+        # check 6 patterns
+        pattern_length = 6
+        if len(line) >= pattern_length:
+            for i in range(0, len(line) - pattern_length + 1):
+                temp_line = [
+                    line[i],
+                    line[i + 1],
+                    line[i + 2],
+                    line[i + 3],
+                    line[i + 4],
+                    line[i + 5]
+                ]
+                # human score
+                for p, pattern in enumerate(human_6_PATTERNS):
+                    if temp_line == pattern:
+                        human_score += human_6_PATTERNS_SCORES[p]
+
+                # AI score
+                for p, pattern in enumerate(AI_6_PATTERNS):
+                    if temp_line == pattern:
+                        AI_score += AI_6_PATTERNS_SCORES[p]
+
+        # check 6 patterns
+        pattern_length = 5
+        if len(line) >= pattern_length:
+            for i in range(0, len(line) - pattern_length + 1):
+                temp_line = [
+                    line[i],
+                    line[i + 1],
+                    line[i + 2],
+                    line[i + 3],
+                    line[i + 4]
+                ]
+                # human score
+                for p, pattern in enumerate(human_5_PATTERNS):
+                    if temp_line == pattern:
+                        human_score += human_5_PATTERNS_SCORES[p]
+
+                # X score
+                for p, pattern in enumerate(AI_5_PATTERNS):
+                    if temp_line == pattern:
+                        AI_score += AI_5_PATTERNS_SCORES[p]
+        return human_score, AI_score
+
+    def high_impact_move(self, current_turn):
+        """
+        It takes a board and a player, 
+        and returns the move that would have the highest 
+        impact on the board, and the score of that move
+        
+        :return: A tuple of the highest score move and
+        the highest score. 
+        Return (None, 0) if the highest impact move's score
+        do not reach HIGH_IMPACT_MOVE_THRESHOLD.
+        """
+
+        temp_board = deepcopy(self.board)
+        board_AI_score, board_human_score = self.evaluate(temp_board)
+
+        highest_score = 0
+        highest_score_move = None
+
+        for r in range(0, ROWS):
+            for c in range(0, COLS):
+                if temp_board[r][c] == None:
+                    temp_board[r][c] = current_turn
+                    temp_board_AI_score, temp_board_human_score = self.evaluate(temp_board)
+
+                    score = 0
+
+                    if current_turn == 'AI':
+                        score = temp_board_AI_score - board_AI_score
+                    elif current_turn == 'human':
+                        score = temp_board_human_score - board_human_score
+
+                    if score > highest_score:
+                        highest_score = score
+                        highest_score_move = (r, c)
+
+                    temp_board[r][c] = None
+        if highest_score >= HIGH_IMPACT_MOVE_THRESHOLD:
+            return highest_score_move, highest_score
+
+        else:
+            return None, 0
+
+    def game_over(self, board):
+        """
+        It checks if there is a winning pattern in the board
+        
+        :param board: the current state of the game
+        :return: the winner of the game.
+        """
+        value_lines = self.split_board_to_arrays(board)
+
+        for value_line in value_lines:
+            pattern_length = 5
+            if len(value_line) >= pattern_length:
+                for i in range(0, len(value_line) - pattern_length + 1):
+                    temp_line = [
+                        value_line[i],
+                        value_line[i + 1],
+                        value_line[i + 2],
+                        value_line[i + 3],
+                        value_line[i + 4]
+                    ]
+                    # HUMAN win
+                    if temp_line == End_Game_Pattern_Human:
+                        return 'human'  #human wins
+
+                    # COM win
+                    if temp_line == End_Game_Pattern_AI:
+                        return 'AI'  #AI wins
+
+        return None  #meaning game over 
+
+    # def check_winner(self):
+    #     # Implement the logic to check for a winner
+    #     pass
+
+    def alpha_beta(self, current_node: MinimaxNode, depth, alpha, beta, maximizingPlayer):
+        #refernce from gfg
+
+        # to understand this implementation : https://www.youtube.com/watch?v=l-hh51ncgDI&ab_channel=SebastianLague
+        # Here maximizingPlayer variable means whether it's turn of max player or not.
+
+        if depth == 0 or self.game_over(current_node.board):
+            AI_score, human_score = self.evaluate(current_node.board)
+            return AI_score - human_score
+
+        if maximizingPlayer:
+            value = -infinity
+            child_nodes = current_node.generate_child_nodes()
+            for child_node in child_nodes:
+                temp = self.alpha_beta(child_node, depth - 1, alpha, beta, False)
+                alpha = max(alpha, value)
+
+                if temp > value:
+                    value = temp
+                    current_node.planing_next_move = child_node.last_move
+                if value >= beta:
+                    break
+            return value
+        else:
+            value = + infinity
+            child_nodes = current_node.generate_child_nodes()
+            for child_node in child_nodes:
+                temp = self.alpha_beta(child_node, depth - 1, alpha, beta, True)
+                if temp < value:
+                    value = temp
+                    current_node.planing_next_move = child_node.last_move
+                beta = min(beta, value)
+            return value
+
+    def random_move(self, expansion_range):
+        possible_moves = self.generate_possible_moves(self.board, expansion_range)
+        return random.choice(possible_moves)
+
+    def generate_possible_moves(self, board, expansion_range):
+        """
+        returns 
+        all the possible moves that are
+        not empty and have a neighbor
+        """
+
+        possible_moves = []
+        for r in range(0, ROWS):
+            for c in range(0, COLS):
+                temp_move = board[r][c]
+                if temp_move != None:
+                    #if the move we are intentended to do is already occupied , 
+                    #we will skip that square of the board
+                    # (i.e it is not possible to move to that square(invalid) as it is already occupied)
+                    continue
+
+                neighbor = None
+                # valid = 0
+
+                #after checking if the square is occupied or not
+                #now we will check if there is any occupied neighbour of that square
+                #if there is occupied neighbour we will append the square to possible moves.
+
+                #This logic implies that the AI will never choose a desserted square from the board. 
+                # desserted square = the square which has no neighbour occupied square
+
+                for i in range(-expansion_range, expansion_range + 1):
+                    for j in range(-expansion_range, expansion_range + 1):
+
+                        # print(f"{i,j}")
+
+                        neighbor_r = r + i
+                        neighbor_c = c + j
+
+                        # print(f"neighbor_r={neighbor_r},neighbor_c={neighbor_c}")
+
+                        if 0 <= neighbor_r < ROWS and 0 <= neighbor_c < COLS:
+                            # print("I am here")
+                            neighbor = board[neighbor_r][neighbor_c]
+
+                            # if neighbor_r == 0 and neighbor_c == 2:
+                            #     print(f"neighbor = {neighbor}")
+
+                        if neighbor is not None:
+                            break
+
+                    if neighbor is not None:
+                        break
+
+                if neighbor is None:
+                    # print(f"not appended: {r, c}")
+                    continue
+
+                possible_moves.append((r, c))
+        # print(f"currenet board state={self.board}")
+
+        return possible_moves
