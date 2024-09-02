@@ -119,3 +119,128 @@ def draw_popup(surface, message):
     text_surface = font.render(message, True, WHITE)
     text_rect = text_surface.get_rect(center=(popup_x + popup_width // 2, popup_y + popup_height // 2))
     surface.blit(text_surface, text_rect)
+
+def main():
+    menu = True
+    game = False
+
+    gomoku_game = Gomoku()
+
+    run = True
+    clock = pygame.time.Clock()
+    # menu_sound = pygame.mixer.Sound('sounds/menu.mp3')
+    # menu_sound.play()
+
+    new_game_sound = pygame.mixer.Sound('sounds/start_game.mp3')
+
+    Game_Ended = False
+
+    while run:
+        clock.tick(FPS)
+        
+        # window.fill(WHITE)
+
+        if Game_Ended:
+            # gomoku_game = Gomoku() will be used for creating a new game
+            """show a button at the end of the screen, new game button"""
+
+            draw_popup(window,f"{gomoku_game.current_player} wins!")
+
+            font = pygame.font.Font(None, 40)
+
+            text_surface = font.render(f"{gomoku_game.current_player} wins!", True, GREEN)
+            text_rect = text_surface.get_rect(center=(400, 80))
+
+            window.blit(text_surface, text_rect)
+
+            pygame.display.flip()
+
+            new_game_btn.draw(window)
+
+            pygame.display.update()
+
+        if game and gomoku_game.current_player == 'AI' and not Game_Ended:
+
+            font = pygame.font.Font(None, 40)
+            text_surface = font.render("AI is calculating it's move......", True, BLACK)
+            text_rect = text_surface.get_rect(center=(400, 870))
+
+            window.blit(text_surface, text_rect)
+
+            pygame.display.flip()
+
+            r, c = gomoku_game.ai_move()
+            gomoku_game.make_move(r, c)
+            gomoku_game.moves.append((r, c))
+
+            gomoku_game.current_player = 'AI'
+
+            # print(f"{gomoku_game.current_player}")
+
+            print("Currently AI move")
+            if gomoku_game.game_over(gomoku_game.board):
+                gomoku_game.current_player = 'AI'
+                print(f"{gomoku_game.current_player} wins!")
+                Game_Ended = True
+                continue
+                # run = False
+
+            # print(f"printing the AI's row,col position : row:{r} col:{c}")
+            # print("AI has given it's move....Now it's turn for human")
+            gomoku_game.current_player = 'human'
+
+        # if Game_Ended:
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if menu and start_btn.rect.collidepoint(event.pos):
+                    menu = False
+                    game = True
+                    new_game_sound.play()
+                elif menu and exit_btn.rect.collidepoint(event.pos):
+                    """This button will exit the user fronm the game """
+                    """There could be some other buttons which will allow user to use different difficulty modes."""
+                    pass
+                elif game and gomoku_game.current_player == 'human' and not Game_Ended:
+
+                    x, y = event.pos
+
+                    if x < BOARD_START_POS_X or x > BOARD_END_POS_X or y < BOARD_START_POS_Y or y > BOARD_END_POS_Y:
+                        #play an error sound
+                        continue
+
+                    row, col = (y - BOARD_START_POS_Y) // CELL_SIZE, (x - BOARD_START_POS_X) // CELL_SIZE
+                    if gomoku_game.make_move(row, col):
+                        gomoku_game.moves.append((row, col))
+
+                        if gomoku_game.game_over(gomoku_game.board):
+                            # gomoku_game.current_player = 'AI' if gomoku_game.current_player == 'human' else 'human'
+                            print(f"{gomoku_game.current_player} wins!")
+                            Game_Ended = True
+
+                    print(f"Human's move = {row, col}")
+
+            if new_game_btn.handle_event(event):
+                # print("button is clicked")
+                new_game_sound.play()
+                print("New Game Started")
+                # Add your desired functionality here
+                Game_Ended = False
+                gomoku_game = Gomoku()  # Reset the
+
+        # else:
+        #     pass
+
+        if menu:
+            draw_menu()
+        elif game:
+            draw_game(gomoku_game)
+        # pygame.display.flip()
+
+    pygame.quit()
+
+
+main()    
